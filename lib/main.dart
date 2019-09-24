@@ -84,17 +84,23 @@ class _MyHomePageState extends State<MyHomePage> {
           RaisedButton(
             onPressed: () {
               toggleClockedIn.add(DateTime.now());
+              setState(() {
+
+              });
             },
-            child: const Text(
-              'Ein/ausStempeln',
-            ),
+            child: new Text(
+              (toggleClockedIn.length % 2 == 0) ? 'Einstempeln' : "Ausstempeln",
+          ),
           ),
           RaisedButton(
             onPressed: () {
               toggleBreak.add(DateTime.now());
+              setState(() {
+
+              });
             },
-            child: const Text(
-              'Pause beginnen/enden',
+            child: new Text(
+              (toggleBreak.length % 2 == 0) ? 'Pause beginnen' : 'Pause enden',
             ),
           ),
         ]
@@ -172,24 +178,53 @@ class TotalTimerTextState extends State<TotalTimerText> {
   Duration calcWorkTime() {
     Duration workTime = new Duration(minutes: 0);
     bool inBreak = false;
+    bool clockedIn = false;
+    int indexClockIn = 1;
     DateTime lastPointOfReference;
     if (toggleClockIn.length > 0) {
       lastPointOfReference = toggleClockIn[0];
+      clockedIn = true;
       for (DateTime breakToggle in toggleBreak) {
-        if (inBreak) {
-          inBreak = false;
-          lastPointOfReference = breakToggle;
+        if (indexClockIn < toggleClockIn.length &&
+            toggleClockIn[indexClockIn].compareTo(breakToggle) < 0) {
+          if (inBreak && clockedIn) {
+            clockedIn = false;
+          } else if (!inBreak && clockedIn) {
+            clockedIn = false;
+            workTime +=
+                toggleClockIn[indexClockIn].difference(lastPointOfReference);
+          } else if (inBreak && !clockedIn) {
+            clockedIn = true;
+          } else if (!inBreak && !clockedIn) {
+            clockedIn = true;
+          }
+          indexClockIn++;
         } else {
-          workTime += breakToggle.difference(lastPointOfReference);
-          inBreak = true;
+          if (inBreak) {
+            inBreak = false;
+            lastPointOfReference = breakToggle;
+          } else {
+            if (clockedIn) {
+              workTime += breakToggle.difference(lastPointOfReference);
+            }
+            inBreak = true;
+            //lastPointOfReference=breakToggle;
+          }
         }
       }
-      if (toggleClockIn.length == 2) {
-        workTime += toggleClockIn[1].difference(lastPointOfReference);
-      } else {
-        if (!inBreak) {
-          workTime += DateTime.now().difference(lastPointOfReference);
+      List<DateTime> clockInOverflow = toggleClockIn.sublist(indexClockIn);
+      for (DateTime toggle in clockInOverflow) {
+        if (clockedIn && !inBreak) {
+          workTime += toggle.difference(lastPointOfReference);
+          clockedIn = false;
+          lastPointOfReference = toggle;
+        } else {
+          clockedIn = true;
+          lastPointOfReference = toggle;
         }
+      }
+      if (clockedIn && !inBreak) {
+        workTime += DateTime.now().difference(lastPointOfReference);
       }
     }
     return workTime;
