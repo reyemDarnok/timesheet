@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 void main() => runApp(MyApp());
@@ -20,7 +22,7 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: MyHomePage(title: 'Timesheet'),
     );
   }
 }
@@ -44,6 +46,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
+  List<DateTime> toggleBreak = new List<DateTime>();
+  List<DateTime> toggleClockedIn = new List<DateTime>();
 
   @override
   Widget build(BuildContext context) {
@@ -73,12 +78,25 @@ class _MyHomePageState extends State<MyHomePage> {
     Column main = Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text("Überschrift"),
-          Text("Zeit heute gearbeitet"),
+          new TotalTimerText(toggleBreak, toggleClockedIn),
           Text("Zeit heute Pause gemacht"),
           Text("Jetzt abhauen macht minus"),
-          Text("ein/ausstempeln"),
-          Text("Pausen beginn/ende")
+          RaisedButton(
+            onPressed: () {
+              toggleClockedIn.add(DateTime.now());
+            },
+            child: const Text(
+              'Ein/ausStempeln',
+            ),
+          ),
+          RaisedButton(
+            onPressed: () {
+              toggleBreak.add(DateTime.now());
+            },
+            child: const Text(
+              'Pause beginnen/enden',
+            ),
+          ),
         ]
     );
     Row r = Row(mainAxisAlignment: MainAxisAlignment.center, children: [main]);
@@ -87,7 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   _goToSettings() {
     Navigator.of(context).push(
-        new MaterialPageRoute<void>(builder: (BuildContext) {
+        new MaterialPageRoute<void>(builder: (buildContext) {
           return settingsPage();
         }));
   }
@@ -116,14 +134,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         text: Config.breakPerDay.toString()),
                   )
               ),
-              ListTile(
-                  dense: true,
-                  leading: Text("Ab wann wird Pause angerechnet"),
-                  title: TextField(
-                    controller: new TextEditingController(
-                        text: Config.breakCutOff.toString()),
-                  )
-              )
+
             ]
         )
     );
@@ -131,8 +142,62 @@ class _MyHomePageState extends State<MyHomePage> {
 
 }
 
+class TotalTimerText extends StatefulWidget {
+  final List<DateTime> toggleBreak;
+  final List<DateTime> toggleClockIn;
+
+  TotalTimerText(this.toggleBreak, this.toggleClockIn);
+
+
+  TotalTimerTextState createState() =>
+      new TotalTimerTextState(toggleBreak, toggleClockIn);
+}
+
+class TotalTimerTextState extends State<TotalTimerText> {
+  Timer timer;
+  List<DateTime> toggleBreak;
+  List<DateTime> toggleClockIn;
+
+  TotalTimerTextState(this.toggleBreak, this.toggleClockIn) {
+    timer = new Timer.periodic(new Duration(milliseconds: 1000), (timer) {
+      setState(() {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return new Text("Arbeitszeit: " + calcWorkTime().toString());
+  }
+
+  Duration calcWorkTime() {
+    Duration workTime = new Duration(minutes: 0);
+    bool inBreak = false;
+    DateTime lastPointOfReference;
+    if (toggleClockIn.length > 0) {
+      lastPointOfReference = toggleClockIn[0];
+      for (DateTime breakToggle in toggleBreak) {
+        if (inBreak) {
+          inBreak = false;
+          lastPointOfReference = breakToggle;
+        } else {
+          workTime += breakToggle.difference(lastPointOfReference);
+          inBreak = true;
+        }
+      }
+      if (toggleClockIn.length == 2) {
+        workTime += toggleClockIn[1].difference(lastPointOfReference);
+      } else {
+        if (!inBreak) {
+          workTime += DateTime.now().difference(lastPointOfReference);
+        }
+      }
+    }
+    return workTime;
+  }
+
+}
+
 class Config {
   static Duration workPerDay = new Duration(hours: 7, minutes: 21);
   static Duration breakPerDay = new Duration(hours: 1);
-  static Duration breakCutOff = new Duration(hours: 6);
 }
